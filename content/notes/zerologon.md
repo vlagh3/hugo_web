@@ -24,29 +24,28 @@ draft: false
 
 ## Exploitation
 ![](/img/exploit_zerologon.png)
-1. Spoofing the client credential
-	- after exchanging challenges with a `NetrServerReqChallenge` call
-	- a client authenticates by doing a `NetrServerAuthenticate3` call, which has a parameter `ClientCredential` *(that is computed by applying the `ComputeNetlogonCredential` to the client challenge)*
-	- because we have control over the client challenge there's nothing stopping us to set it to 8 zeroes => for 1 in 256 session keys, the correct `ClientCredential` will also consist of 8 zeroes
-	- session key will be different for every authentication attempt
-	- computer accounts are not locked after invalid login attempt => we can try a bunch of times until we hit a key & authentication succeeds
-2. Disabling signing & sealing
-	- ok we can bypass the auth call, but we still have no idea what the value of the session key is
-	- it becomess problematic due to Netlogon'ss transport encryption mechanism *(RPC signing & sealing)*, which uses this key but a different scheme than `ComputeNetlogonCredential`
-	- luckily, signing & sealing is optional => so we can simply omit the flag in the `NetrServerAuthenticate3` call & continue
-3. Spoofing a call
-	- even when encryption is disabled, every call must contain a so-called `authenticator` value which is computed by applying `ComputeNetlogonCredential(w session key)` to the `ClientStoredCredential + Timestamp`
-		- `ClientStoredCredential`: incrementing value maintained by the client & intialised to the same value as the `ClientCredential` we provided => will be 0
-		- `Timestamp`: the current Posix time; server doesn't place many restriction on this value => simply pretend that it’s January 1st, 1970 = 0
-	- `ComputeNetlogonCredential(0) = 0` => we can authenticate our first call by simply providing an all-zero authenticator & timestamp
-4. Changing computer's AD password
-	- we can leverage the `NetrServerPasswordSet2` call to set a new password for the client
-		- password is not hashed but it is encrypted with the session key by using again `CFB8` with an all-zero IV
-	- plaintext password structure in the Netlogon protocol consists of 516 bytes *(last 4 being the pass len)*
-	- provide 516 zeroes => decryption to 516 zeroes => zero-length password *(setting empty passwords for a computer is not forbidden)* => can set an empty password for any computer in the domain
-	- afterwards, we can simply set up a new Netlogon connection on behalf of this computer
-	> **NOTE**: When changing a computer password in this way it is only changed in the AD. The targeted system itself will still locally store its original password.
-5. From pass change to domain admin
+### 1. Spoofing the client credential
+- after exchanging challenges with a `NetrServerReqChallenge` call
+- a client authenticates by doing a `NetrServerAuthenticate3` call, which has a parameter `ClientCredential` *(that is computed by applying the `ComputeNetlogonCredential` to the client challenge)*
+- because we have control over the client challenge there's nothing stopping us to set it to 8 zeroes => for 1 in 256 session keys, the correct `ClientCredential` will also consist of 8 zeroes
+- session key will be different for every authentication attempt
+- computer accounts are not locked after invalid login attempt => we can try a bunch of times until we hit a key & authentication succeeds
+### 2. Disabling signing & sealing
+- ok we can bypass the auth call, but we still have no idea what the value of the session key is
+- it becomess problematic due to Netlogon'ss transport encryption mechanism *(RPC signing & sealing)*, which uses this key but a different scheme than `ComputeNetlogonCredential`
+- luckily, signing & sealing is optional => so we can simply omit the flag in the `NetrServerAuthenticate3` call & continue
+### 3. Spoofing a call
+- even when encryption is disabled, every call must contain a so-called `authenticator` value which is computed by applying `ComputeNetlogonCredential(w session key)` to the `ClientStoredCredential + Timestamp`
+  - `ClientStoredCredential`: incrementing value maintained by the client & intialised to the same value as the `ClientCredential` we provided => will be 0
+  - `Timestamp`: the current Posix time; server doesn't place many restriction on this value => simply pretend that it’s January 1st, 1970 = 0
+- `ComputeNetlogonCredential(0) = 0` => we can authenticate our first call by simply providing an all-zero authenticator & timestamp
+### 4. Changing computer's AD password
+- we can leverage the `NetrServerPasswordSet2` call to set a new password for the client
+        - password is not hashed but it is encrypted with the session key by using again `CFB8` with an all-zero IV
+- plaintext password structure in the Netlogon protocol consists of 516 bytes *(last 4 being the pass len)*
+- provide 516 zeroes => decryption to 516 zeroes => zero-length password *(setting empty passwords for a computer is not forbidden)* => can set an empty password for any computer in the domain
+- afterwards, we can simply set up a new Netlogon connection on behalf of this computer
+> **NOTE**: When changing a computer password in this way it is only changed in the AD. The targeted system itself will still locally store its original password.
 
 ### Lab
 - **Perequistes**

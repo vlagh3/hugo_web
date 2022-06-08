@@ -23,7 +23,7 @@ Running nmap reveals 2 services:
 Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 ```
 
-Once we check the web server, we see that we can beutify/validate JSON. Also, the validate functionality is in Beta. So let's check that first.
+Once we check the web server, we see that we can beautify/validate JSON. Also, the validate functionality is in Beta. So let's check that first.
 <br>
 
 Upon submitting `{"test"}` we see the following error: 
@@ -33,21 +33,22 @@ So it's expecting an array: `["test"]`.
 But that also throws an error: 
 `Validation failed: Unhandled Java exception: com.fasterxml.jackson.databind.exc.InvalidTypeIdException: Could not resolve type id 'test' as a subtype of [simple type, class java.lang.Object]: no such class found`
 
-Now, in both of our errors we see that they're thrown by a library called *jackson*, which is used to 
+Now, in both of our errors we see that they're thrown by a library called [jackson](https://github.com/FasterXML/jackson), which is used to 
 serialize or map POJO *(Plain Old Java Objects)* to JSON and deserialize JSON to POJO. With some more searching we find a [CVE](https://blog.doyensec.com/2019/07/22/jackson-gadgets.html) which addresses a deserialization vulnerability where an attacker could control the class to be deserialized.
 
 
 ## Understanding the CVE
 <br>
 
-***What is serialization/deserialization***
+### What is serialization/deserialization?
+
 In order to understand what deserialization vulnerabilities are and behave, we firstly need to get familiar with what serialization & deserialization is. Swapneil Kumar Dash wrote a beautiful [article](https://medium.com/@swapneildash/understanding-java-de-serialization-ee96054da15d) about this, however I will provide a short overview in this post as well. 
 
 > In computing, serialization  is the process of translating a data structure or object state into a format that can be stored or transmitted and reconstructed later. Deserialization is the opposite.
 
 In our case, we translate java objects into JSON and vice-versa.
 
-	* What could go wrong ?
+### What could go wrong?
 
 Usually, in java we can use something like this to deserialize data:
 ```java
@@ -57,7 +58,7 @@ ObjectInputStream in = new ObjectInputStream(fin);
 customClassInstance  = (CustomClass) in.readObject();
 ...
 ```
-The main problem lies within the way readObject deserializes data which executes the class while also
+The main problem lies within the way `readObject()` deserializes data which executes the class while also
 throwing an error if we give it a serialized input of a different class.
 
 I won't go into much detail here on this topic, since it's a broad one. However, if you're interested in 
@@ -65,7 +66,7 @@ learning more about it you should check the resources and [this talk](https://ww
 around with.
 <br>
 
-***How java gadgets work***
+### How java gadgets work?
 Gadgets are just a class or funcion that's available within the executing scope of an application. For example the following code is a simple implementation in Java:
 ```java
 /* CacheManager.java */
@@ -94,7 +95,7 @@ public class CommandTask implements Runable, Serializable {
 Here, an attacker can inject a serialized `CommandTask` into an input stream that will be read by `CacheManager`, which in return invokes run. Therefore, he gains arbitrary command execution.
 <br>
 
-***Jackson library deserialization vulnerability POC***
+### Jackson library deserialization vulnerability POC
 The *CVE* of interest is focusing mostly on the *Jackson* library. They found that when *Jackson* deserializes a specific class (`ch.qos.logback.core.db.DriverManagerConnectionSource`), it can be abused to instantiate a Java Database Connectivity *(JDBC)*, which is used to connect & interact with the dabase. To understand better let's break down the payload used in the [**POC**](https://blog.doyensec.com/2019/07/22/jackson-gadgets.html):
 
 `$ "[\"ch.qos.logback.core.db.DriverManagerConnectionSource\", {\"url\":\"jdbc:h2:mem:\"}]"`

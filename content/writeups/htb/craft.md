@@ -9,7 +9,7 @@ draft: false
 By looking at the source code we can see gogs and api subdomains
 
 
-So I just modified the  /etc/hosts to the following in order to access them.
+So I just modified the `/etc/hosts` to the following in order to access them:
 ```
 10.10.10.110    craft.htb gogs.craft.htb api.craft.htb
 ```
@@ -167,9 +167,9 @@ I've instantly looked at the `.ssh` folder and found the private key and therefo
 
 # Getting root
 
-Once I've got user I immediatly went back to the new repo to have a deeper look into it, since I learned my lesson from the previous incident.
+Once I've got user I immediately went back to the new repo to have a deeper look into it, since I learned my lesson from the previous incident.
 
-After looking through almost everything, the `vault/secrets.sh` popped as the most interesting to have a look at:
+After looking through almost everything, the `vault/secrets.sh` popped as the most interesting to peek at:
 ```bash
 #!/bin/bash
 # set up vault secrets backend

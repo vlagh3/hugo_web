@@ -14,8 +14,8 @@ hideComments = false
 
 Today we will continue talking about ELF files by starting to play with the headers so I’ll show you how to inject an ELF binary. This may help you get more familiar with ELF binaries and also show you the real power of it.
 Ok, so with all of that being said let’s dive into it.
-Infection Technique
 
+## Infection Technique
 This technique it’s a relative simple one but perfect for our purpose. It consists of the following steps:
  1. Find the padding area between `.text` section and the next segment in the program.
  2. Append the payload at the end of the `.text` section *(in that padding area)*.
@@ -24,7 +24,7 @@ This technique it’s a relative simple one but perfect for our purpose. It cons
 
 We are going to take advantage of the padding area *(that is almost always there)* between segments. This basically happens because the operating system works with Page granularity and because of the way the segments are loaded into memory.
 
-Anyway, in general it’s an unused area at the end of the .text section. The size of the padding depends on the size of the code, so it may vary from program to program. For that reason, some programs may not be able to be injected. *(I will let you guys find another creative ways to make it more efficient and reliable. 🙂 )*
+Anyway, in general it’s an unused area at the end of the `.text` section. The size of the padding depends on the size of the code, so it may vary from program to program. For that reason, some programs may not be able to be injected. *(I will let you guys find another creative ways to make it more efficient and reliable. 🙂 )*
 
  
 ## Writing the injector
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-This code is pretty straightforward. We have a small check on the arguments we pass. After we pass (to the `open_and_map` function) 2 variables that will store the file size and a pointer to the beginning of our file. Then, we get the file desciptors for both the payload and target file.
+This code is pretty straightforward. We have a small check on the arguments we pass. After, we pass *(to the `open_and_map` function)* 2 variables that will store the file size and a pointer to the beginning of our file. Then, we get the file desciptors for both the payload and target file.
 
 Let’s take a look at the `open_and_map` function.
 
@@ -89,7 +89,7 @@ printf("[+] Entry point of %s: 0x%x\n", argv[1], (unsigned int)e_point)
 ```
 
 
-We can retrieve this kind of data because the pointer returned by `open_and_map` function points to the actual content of the file. Thus we find the ELF header as the first thing in the file. The entry point is contained in the ELF header along with other useful information, so we just reference that information with the pointer that we’ve got to the ELF header. If you are  still confused about this, take a look at the [Exploring the ELF file structure article](http://localhost:1313/posts/elf_struct/) that I made and then look at the specs to understand what kind of information is kept by this structure.
+We can retrieve this kind of data because the pointer returned by `open_and_map` function points to the actual content of the file. Thus we find the ELF header as the first thing in the file. The entry point is contained in the ELF header along with other useful information, so we just reference that information with the pointer that we’ve got to the ELF header. If you are  still confused about this, take a look at the [Exploring the ELF file structure article](https://vlagh3.github.io/posts/elf_struct/) that I made and then look at the specs to understand what kind of information is kept by this structure.
 
  
 ### Finding the padding between the two `LOAD` segments.
@@ -166,7 +166,7 @@ Then we keep looking for segments with type `PT_LOAD` and we calculate the paddi
  
 ## The Payload
 
-It’s time to take a look at the payload itself, what it does and how to get it into memory. For the sake of this article, it consists of a simple classical hello world program written in assembly. I didn’t want to get dirty and complicated for the reader, so we can focus on the ELF injection process itself. Enough speaking let’s look at it.
+It’s time to take a look at the payload itself, what it does and how to get it into memory. For the sake of this article, it consists of a simple classical hello world program written in assembly. I didn’t want to get dirty and complicated, so we can focus on the ELF injection process itself. Enough speaking let’s look at it.
 
 ```c
 section .text
@@ -209,7 +209,7 @@ Ok, we just push everything to the stack, so we can get back the original state 
  
 ### Retrieving the payload
 
-In order to retrieve the payload, we first need to find the .text section where the code resides. This is done via the `find_section` function that takes as arguments a pointer to the start of the file and the section we want to search for.
+In order to retrieve the payload, we first need to find the `.text` section where the code resides. This is done via the `find_section` function that takes as arguments a pointer to the start of the file and the section we want to search for.
 
 ```c
 p_txt_sec_ptr = find_section(data1, ".text");
@@ -253,7 +253,7 @@ Elf64_Shdr* find_section(void *ptr_elf, char *query) {
 }
 ```
 
-In order to get the section names we need to access the String Header Section Table (`.shstrtab`) in the ELF file. That table stores all the section names required for the executable. Now that we clarified that, we can move on and see what the next part of the code does. So, we get a pointer to the .shstrtab by adding the specific offset to the beginning of the file. Then, we iterate over all the sections in the ELF file and retrieve the name of the section by adding to the `sec_strtab_ptr` the index where the name resides.
+In order to get the section names we need to access the String Header Section Table (`.shstrtab`) in the ELF file. That table stores all the section names required for the executable. Now that we clarified that, we can move on and see what the next part of the code does. So, we get a pointer to the `.shstrtab` by adding the specific offset to the beginning of the file. Then, we iterate over all the sections in the ELF file and retrieve the name of the section by adding to the `sec_strtab_ptr` the index where the name resides.
 
  
 ### Processing The Payload

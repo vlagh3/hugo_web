@@ -111,7 +111,7 @@ Some things to note here:
 2. Each offset is a multiple of 2. Well why? Because, some opcodes can receive an operand such as `LOAD_FAST`, whereas `BINARY_ADD` doesn't. However, since of python 3.6 every instruction will get an argument so that every opcode has 2 bytes. 
 *(There are cases in which the argument gets larger than 2 bytes and it will be split in multiple bytes, but it's always going to be a multiple of 2)*
 
-In order to make some sense out of any bytecode, we need to understand how the Python Virtual Machine *(PVM)** works.
+In order to make some sense out of any bytecode, we need to understand how the Python Virtual Machine *(PVM)* works.
 
 ## Ok but how does python actually uses bytecode
 The PVM is written in C and you can find it [here](https://github.com/python/cpython). The most important thing to understand is that CPython is a stack-oriented virtual machine. A stack's primary operations are load/push and store/pop. We can load/push a value on the top of an upwardly-growing stack *(incrementing the stack pointer)* and we can store/pop a value from the top of the stack *(decrementing the stack pointer)*.
@@ -206,31 +206,14 @@ After, we call the function, specifying the nr of arguments it has *(`CALL_FUNCT
 To better understand this process, let's have a look at how these stacks behave and also at how the opcodes are actually defined within the interpreter.
 
 
-**BINARY_ADD**
-	load/push onto the stack the + of the two values on the top
-	written `stack[stackp-1] = stack[stackp-1] + stack[stackp]; stackp -= 1`
-	(turns the two values on the top of the stack into their sum)
+- **BINARY_ADD**: load/push onto the stack the + of the two values on the top written `stack[stackp-1] = stack[stackp-1] + stack[stackp]; stackp -= 1` (turns the two values on the top of the stack into their sum)
+- **LOAD_FAST N**: load/push onto the stack the value stored in `co_varnames[N]`, written `stackp += 1, stack[stackp] = co_varnames[N]`
+- **LOAD_CONST N**: pushes `co_consts[N]` onto the stack.
+- **LOAD_NAME N**: pushes the value associated with `co_names[N]` onto the stack.
+- **RETURN_VALUE**: returns with TOS *(top of the stack)* to the caller of the function.
+- **CALL_FUNCTION argc**: calls a callable object with positional arguments. `argc` indicates the number of positional arguments. The TOS contains positional arguments, with the right-most argument on top. `CALL_FUNCTION` pops all arguments and the callable object off the stack, calls the callable object with those arguments, and pushes the return value returned by the callable object.
 
-**LOAD_FAST N**
-    load/push onto the stack the value stored in co_varnames[N],
-    written stackp += 1, stack[stackp] = co_varnames[N] 
-
-**LOAD_CONST N**
-	pushes co_consts[N] onto the stack.
-
-**LOAD_NAME N**
-	pushes the value associated with co_names[N] onto the stack.
-
-**RETURN_VALUE**
-	returns with TOS (top of the stack) to the caller of the function.
-
-**CALL_FUNCTION argc**
-	calls a callable object with positional arguments. `argc` indicates the number of positional arguments.
-	the TOS contains positional arguments, with the right-most argument on top. CALL_FUNCTION pops all arguments 
-	and the callable object off the stack, calls the callable object with those arguments, and pushes the 
-	return value returned by the callable object.
-
-( check the dis module [docs](https://docs.python.org/3/library/dis.html#python-bytecode-instructions) for a complete definition of all the instructions)
+*(check the dis module [docs](https://docs.python.org/3/library/dis.html#python-bytecode-instructions) for a complete definition of all the instructions)*
 
 ```bash
 BYTECODE								Main Frame						
@@ -268,7 +251,7 @@ RETURN_VALUE			|	|								 |
 ```
 
 If you want to explore more about how the PVM works, how frames are created, what are the C structures behind
-the scenes, check out this talk [] and the actual source code []
+the scenes, check out this [talk]() and the actual [source code]()
 															 
 															 
 # Some fun
@@ -362,14 +345,13 @@ So why is that? Well we should explore the bytecode:
 ```
 
 They are pretty much the same, but with a few important differences. And those are the following:
+- `LOAD_NAME` VS `LOAD_GLOBAL`	*(offset 0 )*
+- `STORE_NAME` VS `STORE_FAST`	*(offset 10)*
+- `LOAD_NAME`  VS `LOAD_FAST`	*(offset 12)*
 
-LOAD_NAME  VS LOAD_GLOBAL	(offset 0)
-STORE_NAME VS STORE_FAST	(offset 10)
-LOAD_NAME  VS LOAD_FAST		(offset 12)
+We know that `LOAD_NAME` is pushing values from `co_names` list onto the stack, which is pretty much the same as `LOAD_GLOBAL`. So no big difference there. Yet, we notice that the naked program is using the global namespace to load / store variables, while the `main_func` program is using it's local namespace. Since, the global namespace is bigger than the local one, finding stuff is harder. As a result, it takes more time to execute.
 
-We know that LOAD_NAME is pushing values from co_names list onto the stack, which is pretty much the same as LOAD_GLOBAL. So no big difference there. Yet, we notice that the naked program is using the global namespace to load / store variables, while the main_func program is using it's local namespace. Since, the global namespace is bigger than the local one, finding stuff is harder. As a result, it takes more time to execute.
-
-So START USING YOUR MAIN FUNCTION PEOPLE :D
+So **START USING YOUR MAIN FUNCTION PEOPLE :D**
 
 ## Injecting the code object
 Now that we have an idea about how code objects work, let's try playing around with them. Suppose we have this function:
@@ -388,7 +370,7 @@ func
               2 RETURN_VALUE
 ```
 
-So what would happen if we modify the `co_consts` tuple, will this just return ur value instead ? 
+So what would happen if we modify the `co_consts` tuple, will this just return our value instead ? 
 The answer is yes, computers are dumb they just do what they're told to, so in this case it would load whatever value is at index 1 in `co_consts` and return.
 ```python
 In [9]: injConsts = (None, "wut happened?")
@@ -502,7 +484,7 @@ add
   co_consts  : (None, 0, 'whoami') 
 ```
 
-That was pretty easy, now let's go and construct out injected bytecode and insert it before the function's bytecode
+That was pretty easy, now let's go and construct our injected bytecode and insert it before the function's bytecode
 ```python
 # inj_code = (
 #         "\x64",  LOAD_CONST    (0)
@@ -546,20 +528,22 @@ Out[59]: 12
 
 Victory !! We achieved code execution.
 
-You can imagine how you could use this as a stealthy way to deploy stealthy backdoors, exfiltrate data, etc.
+You can imagine how you could use this as a stealthy way to deploy backdoors, exfiltrate data, etc.
 The nice thing about this aproach is that your code gets executed by the current running process, without spawning a suspicios subprocess that may raise some alerts. I haven't tested this yet, but I think that this kind of attack
 might be more effective if a deserialization vulnerability is in place.
 
 There are some things to note though:
 
-1. This example uses a simple add function. Hence, the interaction with different attributes are minimal *(e.g co_names was empty in our example)*. Since there weren't many interactions with some of the variable tuples, we could easily add our own and easily change the bytecode to load from those specific indexe's
+1. This example uses a simple `add()` function. Hence, the interaction with different attributes are minimal *(e.g co_names was empty in our example)*. Since there weren't many interactions with some of the variable tuples, we could easily add our own and change the bytecode to load from those specific indexe's
 <br>
-2.	More complex functions might be harder to inject because you need to set the position of your injected variables in such a way that is compatible with the bytecode already in place. Consequently, it might not be as easy as inserting your injected code at the start, instead you will also need to modify some of the original bytecode instructions accordingly.
+2. More complex functions might be harder to inject because you need to set the position of your injected variables in such a way that is compatible with the bytecode already in place. Consequently, it might not be as easy as inserting your injected code at the start, instead you will also need to modify some of the original bytecode instructions accordingly.
 <br>
-3.	Another thing that I noticed during my explorations is that function parameters play a big role in choosing how you position your injected variables.
+3. Another thing that I noticed during my explorations is that function parameters play a big role in choosing how you position your injected variables.
+<br>
+4. You need access to the source code of your target
 
 Currently, I'm trying to develop a way to automatically inject any piece of bytecode in any function. However, I 
-ran into some problems due to the points I made above. So if there are some python guru's reading this, please
+ran into some problems due to the points I made above. So if there are some python gurus reading this, please
 reach out to me at `vlaghew@protonmail.com` and we might develop something beautiful. Thanks !
 
 # Conclusion
